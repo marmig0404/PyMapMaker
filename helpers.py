@@ -1,22 +1,30 @@
 # helpers.py includes helper methods for pymapmaker
+import csv
 import datetime
 import os
 import sys
 import time
+
 from backports import configparser
+
 import database
+from errors import MissingLastRunTime, MissingPastMapsList
 
 start_time = str(round(time.time(), 0))
 config_file = "config.ini"
 private_config_file = "privateConfig.ini"
+temp_dir = 'tmp'
+log_directory = 'logs'
+if not os.path.exists(log_directory):
+    os.makedirs(log_directory)
 
 
 def write_to_log(data_to_write):
     # writes function input to log file and terminal output
     print(data_to_write)
-    log_file_location = os.path.join("logs", "log-" + log_time + ".txt")
-    log_file = open(log_file_location, "a")
-    log_file.write("(" + log_time + "/" + start_time + ") " + data_to_write + "\n")
+    log_file_location = os.path.join(log_directory, "log-" + log_time_string + ".txt")
+    log_file = open(log_file_location, "a+")
+    log_file.write("(" + log_time_string + "/" + start_time + ") " + data_to_write + "\n")
     log_file.close()
 
 
@@ -66,16 +74,17 @@ def get_database_config(database_type):
         map_image_column = get_config("Address Database Config", "Map Image Location Column Name")
         return_database = database.MySQL(host, port, dbname, username, password, table, address_column,
                                          last_modified_column, map_image_column)
-    elif database_type == "map":
-        host = get_config("Map Database Config", "Host")
-        port = get_config("Map Database Config", "Port")
-        dbname = get_config("Map Database Config", "Database Name")
-        username = get_config("Map Database Config", "Username")
-        password = get_config("Map Database Config", "Password")
-        schema = get_config("Map Database Config", "Database Schema")
-        table_names = get_config("Map Database Config", "Table Names")
-        geometry_columns = get_config("Map Database Config", "Geometry Columns")
-        return_database = database.PGSQL(host, port, dbname, username, password, schema, table_names, geometry_columns)
+    # elif database_type == "map":
+    #     host = get_config("Map Database Config", "Host")
+    #     port = get_config("Map Database Config", "Port")
+    #     dbname = get_config("Map Database Config", "Database Name")
+    #     username = get_config("Map Database Config", "Username")
+    #     password = get_config("Map Database Config", "Password")
+    #     schema = get_config("Map Database Config", "Database Schema")
+    #     table_names = get_config("Map Database Config", "Table Names")
+    #     geometry_columns = get_config("Map Database Config", "Geometry Columns")
+    #     return_database = database.PGSQL(host, port, dbname, username, password, schema, table_names, geometry_columns
+
     else:
         return_database = None
 
@@ -84,26 +93,50 @@ def get_database_config(database_type):
 
 def get_last_run_time():
     # reads file named last.time from ./logs to see the last time the program was ran
-    last_run_file = open(os.path.join('.', 'logs', 'last.time'), "+")
-    last_run_time_data = last_run_file.read()
-    last_run_file.close()
-    return last_run_time_data
+    try:
+        last_run_file = open(os.path.join('logs', 'last.time'), "r")
+        last_run_time_data = last_run_file.read()
+        last_run_file.close()
+        return last_run_time_data
+    except IOError:
+        return 0
 
 
 def get_time():
     return str(round(time.time(), 0))
 
 
-def set_run_time():
-    # updates the last.time file for next run
-    last_run_file = open(os.path.join('logs', 'last.time'), "+")
-    last_run_file.write(start_time)
-    last_run_file.close()
+def save_maps(maps):
+    maps_file_location = os.path.join(log_directory, "maps-" + log_time_string + ".csv")
+    with open(maps_file_location, mode='w') as map_file:
+        map_writer = csv.writer(map_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        for address, name in maps:
+            map_writer.writerow([address, name])
 
 
+def get_new_addresses(addresses):
+    last_time_location = os.path.join(temp_dir, 'last.time')
+    if os.path.isfile(last_time_location):
 
+        formatted_last_time = time.strftime(time.localtime(int(last_run_time)))
+        maps_file_location = os.path.join(log_directory, "maps-" + formatted_last_time + ".csv")
+        if os.path.isfile(maps_file_location):
+
+            old_addresses = []
+            with open(maps_file_location, mode='r') as map_file:
+
+                csv_reader = csv.DictReader(map_file)
+                for row in csv_reader:
+                    old_addresses.append(row[0])
+            return set(addresses).intersection(set(old_addresses))
+
+        else:
+            raise MissingPastMapsList
+    else:
+        raise MissingLastRunTime
 
 
 last_run_time = get_last_run_time()
 naming_scheme = get_config("General Config", "Log Naming Scheme")
-log_time = datetime.datetime.now().strftime(naming_scheme)
+log_time = datetime.datetime.now()
+log_time_string = log_time.strftime(naming_scheme)

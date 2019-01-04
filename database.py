@@ -1,9 +1,11 @@
 # database.py includes the class Database for use to connect to different databases
 # as of right now, database.py only includes config for MySQL and PostgreSQL databases
 
-import helpers
-import mysql.connector
 import sys
+
+import mysql.connector
+
+import helpers
 
 
 class Database(object):  # general database object format
@@ -19,16 +21,6 @@ class Database(object):  # general database object format
 
 class MySQL(Database):  # class for mysql database used as an address database
 
-    def __init__(self, host, port, dbname, username, password, table, address_column, last_modified_column,
-                 map_image_column):
-        helpers.write_to_log("Initializing MySQL Database...")
-        Database.__init__(self, host, port, dbname, username, password)
-        self.address_column = address_column
-        self.last_modified_column = last_modified_column
-        self.map_image_column = map_image_column
-        self.table = table
-        helpers.write_to_log("MySQL Database Initialized.")
-
     def connect(self):
         # connects to database using mysql connector
         helpers.write_to_log("Opening MySQL Session...")
@@ -42,6 +34,27 @@ class MySQL(Database):  # class for mysql database used as an address database
         self.isConnected = session.is_open()
         helpers.write_to_log("MySQL connection opened.")
         return session
+
+    def __init__(self, host, port, dbname, username, password, table, address_column, last_modified_column,
+                 map_image_column):
+        helpers.write_to_log("Initializing MySQL Database...")
+        Database.__init__(self, host, port, dbname, username, password)
+        self.address_column = address_column
+        self.last_modified_column = last_modified_column
+        self.map_image_column = map_image_column
+        self.table = table
+        helpers.write_to_log("MySQL Database Initialized.")
+        self.session = self.connect()
+
+    def disconnect(self):
+        if self.isConnected:
+            self.session.close()
+            helpers.write_to_log("MySQL connection closed.")
+        else:
+            helpers.write_to_log("Attempted to close a MySQL connection that does not exist!")
+
+    def __del__(self):
+        self.disconnect()
 
     def make_query(self, query):
         # general function to make a sql query
@@ -83,12 +96,12 @@ class MySQL(Database):  # class for mysql database used as an address database
         return addresses
 
 
-class PGSQL(Database):  # class for postgresql database used as a map database
-
-    def __init__(self, host, port, dbname, username, password, schema, table_names, geometry_columns):
-        helpers.write_to_log("Initializing PostgreSQL Database...")
-        Database.__init__(self, host, port, dbname, username, password)
-        self.schema = schema
-        self.table_names = table_names
-        self.geometry_columns = geometry_columns
-        helpers.write_to_log("PostgreSQL Database Initialized.")
+# class PGSQL(Database):  # class for postgresql database used as a map database
+#
+#     def __init__(self, host, port, dbname, username, password, schema, table_names, geometry_columns):
+#         helpers.write_to_log("Initializing PostgreSQL Database...")
+#         Database.__init__(self, host, port, dbname, username, password)
+#         self.schema = schema
+#         self.table_names = table_names
+#         self.geometry_columns = geometry_columns
+#         helpers.write_to_log("PostgreSQL Database Initialized.")
