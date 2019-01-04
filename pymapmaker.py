@@ -40,7 +40,7 @@ except running.InstanceError:
     helpers.write_to_log("Too many instances of process are running, exiting...")
     sys.exit()
 period_hr = float(helpers.get_config('Automatic Mode Config', 'Interval'))
-period_sec = period_hr # * 3600
+period_sec = period_hr * 3600
 scheduler = sched.scheduler(time.time, time.sleep)
 config_file = helpers.config_file
 scheduler.enter(0, 10, loop, config_file)
