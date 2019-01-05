@@ -11,8 +11,6 @@ pid_file = os.path.join(temp_dir, 'pymapmaker.pid')
 
 
 
-
-
 def check_running():
     is_running = os.path.exists(pid_file)
     return is_running
@@ -28,6 +26,7 @@ def start_process():
         f = open(pid_file, 'w')
         f.write(pid)
         f.close()
+
     else:
         helpers.write_to_log("Tried to start process but process is already running with pid: " + pid)
         raise InstanceError('Instance already running with pid: ' + pid)
@@ -35,8 +34,8 @@ def start_process():
 
 def set_run_time():
     # updates the last.time file for next run
-    last_run_file = open(os.path.join(temp_dir, 'last.time'), "w")
-    last_run_file.write(helpers.log_time)
+    last_run_file = open(helpers.last_run_file_location, "w")
+    last_run_file.write(str(helpers.log_time))
     last_run_file.close()
 
 

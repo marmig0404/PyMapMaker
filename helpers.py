@@ -14,6 +14,8 @@ start_time = str(round(time.time(), 0))
 config_file = "config.ini"
 private_config_file = "privateConfig.ini"
 temp_dir = 'tmp'
+address2img_config_file = os.path.join('address2img', 'config.ini')
+last_run_file_location = os.path.join(temp_dir, 'last.time')
 log_directory = 'logs'
 if not os.path.exists(log_directory):
     os.makedirs(log_directory)
@@ -71,9 +73,8 @@ def get_database_config(database_type):
         table = get_config("Address Database Config", "Table")
         address_column = get_config("Address Database Config", "Address Column Name")
         last_modified_column = get_config("Address Database Config", "Last Modified Column Name")
-        map_image_column = get_config("Address Database Config", "Map Image Location Column Name")
         return_database = database.MySQL(host, port, dbname, username, password, table, address_column,
-                                         last_modified_column, map_image_column)
+                                         last_modified_column)
     # elif database_type == "map":
     #     host = get_config("Map Database Config", "Host")
     #     port = get_config("Map Database Config", "Port")
@@ -97,6 +98,8 @@ def get_last_run_time():
         last_run_file = open(os.path.join('logs', 'last.time'), "r")
         last_run_time_data = last_run_file.read()
         last_run_file.close()
+        if os.path.exists(last_run_file_location):
+            os.remove(last_run_file_location)
         return last_run_time_data
     except IOError:
         return 0
@@ -131,9 +134,9 @@ def get_new_addresses(addresses):
             return set(addresses).intersection(set(old_addresses))
 
         else:
-            raise MissingPastMapsList
+            raise MissingPastMapsList('Cannot locate csv file indicating previous maps')
     else:
-        raise MissingLastRunTime
+        raise MissingLastRunTime('Cannot locate temp file saving last run time')
 
 
 last_run_time = get_last_run_time()

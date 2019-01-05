@@ -7,20 +7,21 @@ import running
 from address2img import map_maker
 from errors import MissingLastRunTime, MissingPastMapsList
 
+automatic_mode = (helpers.get_config('Automatic Mode Config', 'Enabled') == 'True')
+append_mode = (helpers.get_config('Automatic Mode Config', 'Operation Type') == 'Append')
+config_file = helpers.address2img_config_file
 
-def loop(config_file):
+
+def main():
+    helpers.write_to_log("Starting new instance.")
     # initialize database
     address_database = helpers.get_database_config('address')
 
     # retrieve addresses from database
-    sql_query = 'get some addreses'
-    addresses = address_database.make_query(sql_query)
-
-    # close database connection
+    addresses = address_database.get_addresses()
 
     # address filtering
-    automatic_mode = (helpers.get_config('Automatic Mode Config', 'Enabled') == 'True')
-    append_mode = (helpers.get_config('Automatic Mode Config', 'Operation Type') == 'Append')
+
     if automatic_mode and append_mode:
         try:
             addresses = helpers.get_new_addresses(addresses)
@@ -32,25 +33,34 @@ def loop(config_file):
     maps = map_worker.make_maps()
 
     # update list of maps made
-    helpers.save_maps(maps)
+    # helpers.save_maps(maps)
+    address_database.disconnect()
+
+
+def loop():
+    main()
+    helpers.write_to_log("Instance ended. Waiting for interval.")
+
 
 try:
     running.start_process()
 except running.InstanceError:
     helpers.write_to_log("Too many instances of process are running, exiting...")
     sys.exit()
-period_hr = float(helpers.get_config('Automatic Mode Config', 'Interval'))
-period_sec = period_hr * 3600
-scheduler = sched.scheduler(time.time, time.sleep)
-config_file = helpers.config_file
-scheduler.enter(0, 10, loop, config_file)
-try:
-    while True:
-        scheduler.enter(delay=period_sec, priority=1, action=loop, argument=config_file)
-        scheduler.run()
-except KeyboardInterrupt:
-    helpers.write_to_log("Process interrupted.")
-    pass
+if automatic_mode:
+    period_hr = float(helpers.get_config('Automatic Mode Config', 'Interval'))
+    period_sec = period_hr * 3600
+    scheduler = sched.scheduler(time.time, time.sleep)
+    scheduler.enter(0, 10, loop, ())
+    try:
+        while True:
+            scheduler.enter(delay=period_sec, priority=1, action=loop, argument=())
+            scheduler.run()
+    except KeyboardInterrupt:
+        helpers.write_to_log("Process interrupted.")
+        pass
+else:
+    main()
 
 running.end_process()
 
